@@ -19,20 +19,21 @@ function init() {
     60,
     window.innerWidth / window.innerHeight,
     0.1,
-    100
+    1000
   )
-  camera.position.set(0, 1, 0)
+  camera.position.set(0, -30, 20)
   camera.lookAt(0, 0, 0)
 
   scene = new THREE.Scene()
 
-  const light = new THREE.HemisphereLight(0xffffff, 0x888888)
-  light.position.set(0, 1, 0)
+  const light = new THREE.HemisphereLight(0xffffff, 0x000000, 2)
+  light.position.set(0, 10, 10)
   scene.add(light)
 
   const geometry = new THREE.CircleGeometry(0.5, 6, Math.PI / 2, Math.PI * 2)
-  const texture = new THREE.TextureLoader().load("assets/hex-texture.png")
+  const texture = new THREE.TextureLoader().load("assets/hex-texture-png.png")
   const material = new THREE.MeshStandardMaterial({ map: texture })
+  // const material = new THREE.MeshStandardMaterial({ color: 0xffffff })
   const hexCount = 40000
   const hexRow = 200 //Math.sqrt(hexCount)
   let i = 0
