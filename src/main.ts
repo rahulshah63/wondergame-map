@@ -2,10 +2,9 @@ import "./styles/main.css"
 import * as THREE from "three"
 import Stats from "three/examples/jsm/libs/stats.module.js"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
+import ExtendedInstancedMesh from "./extendedInstancedMesh"
 
-let mesh:
-    | THREE.Object3D<THREE.Event>
-    | THREE.InstancedMesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>,
+let mesh: ExtendedInstancedMesh,
   camera: THREE.PerspectiveCamera | THREE.Camera,
   scene: THREE.Scene,
   renderer: THREE.WebGLRenderer,
@@ -16,6 +15,7 @@ const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
 
 const color = new THREE.Color()
+const matrix = new THREE.Matrix4()
 const white = new THREE.Color().setHex(0xffffff)
 
 init()
@@ -52,9 +52,9 @@ function init() {
     opacity: 0.2,
   })
 
-  mesh = new THREE.InstancedMesh(geometry, material, hexCount)
+  mesh = new ExtendedInstancedMesh(geometry, material, hexCount)
 
-  const matrix = new THREE.Matrix4()
+  // const matrix = new THREE.Matrix4()
 
   for (let row = 0; row < hexRow; row++) {
     for (let column = 0; column < hexRow; column++) {
@@ -69,6 +69,9 @@ function init() {
         matrix.makeTranslation(columnOffset, rowOffset, 0)
       }
 
+      // adding q,r,s to each hex mesh
+      mesh.setQRS(i, { q: column, r: row, s: -column - row })
+
       mesh.setMatrixAt(i, matrix)
       mesh.setColorAt(i, color)
       i++
@@ -77,6 +80,8 @@ function init() {
   mesh.translateX(-hexRow * radius * Math.sin(Math.PI / 3))
   mesh.translateY(-hexRow * radius + 1000) // DON'T Know why offset of 1000 is needed but it fits the land part of the map
   mesh.translateZ(10)
+
+  console.log(mesh)
   scene.add(mesh)
 
   // Planer geometry
@@ -160,12 +165,14 @@ function hoverHex() {
 
   if (intersection.length > 0) {
     const instanceId = intersection[0].instanceId
-    console.log({ intersection, instanceId })
 
-    mesh.getColorAt(instanceId, color)
+    mesh.getColorAt(instanceId, color) //no return anything rather update var
+
+    const { q, r, s } = mesh.getQRS(instanceId)
+    console.log({ instanceId, q, r, s })
+
     if (color.equals(white)) {
       mesh.setColorAt(instanceId, color.setHex(Math.random() * 0xffffff))
-
       mesh.instanceColor.needsUpdate = true
     }
   } else {
