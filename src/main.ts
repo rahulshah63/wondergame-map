@@ -3,7 +3,14 @@ import * as THREE from "three"
 import Stats from "three/examples/jsm/libs/stats.module.js"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
 
-let mesh, camera, scene, renderer, controls, stats
+let mesh:
+    | THREE.Object3D<THREE.Event>
+    | THREE.InstancedMesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>,
+  camera: THREE.PerspectiveCamera | THREE.Camera,
+  scene: THREE.Scene,
+  renderer: THREE.WebGLRenderer,
+  controls: OrbitControls,
+  stats: { dom: any; update: () => void }
 
 const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
@@ -123,7 +130,11 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight)
 }
 
-function onMouseMove(event) {
+function onMouseMove(event: {
+  preventDefault: () => void
+  clientX: number
+  clientY: number
+}) {
   event.preventDefault()
 
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1
@@ -135,13 +146,21 @@ function animate() {
 
   controls.update()
 
+  hoverHex()
+
+  render()
+
+  stats.update()
+}
+
+function hoverHex() {
   raycaster.setFromCamera(mouse, camera)
 
   const intersection = raycaster.intersectObject(mesh)
 
   if (intersection.length > 0) {
     const instanceId = intersection[0].instanceId
-    console.log({ instanceId })
+    console.log({ intersection, instanceId })
 
     mesh.getColorAt(instanceId, color)
     if (color.equals(white)) {
@@ -149,11 +168,16 @@ function animate() {
 
       mesh.instanceColor.needsUpdate = true
     }
+  } else {
+    // reset color
+    for (let i = 0; i < mesh.count; i++) {
+      mesh.getColorAt(i, color)
+      if (!color.equals(white)) {
+        mesh.setColorAt(i, color.setHex(0xffffff))
+        mesh.instanceColor.needsUpdate = true
+      }
+    }
   }
-
-  render()
-
-  stats.update()
 }
 
 function render() {
