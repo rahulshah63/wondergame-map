@@ -30,17 +30,11 @@ function init() {
   light.position.set(0, 1, 0)
   scene.add(light)
 
-  const geometry = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 6, 1, false)
+  const geometry = new THREE.CircleGeometry(0.5, 6, Math.PI / 2, Math.PI * 2)
   const texture = new THREE.TextureLoader().load("assets/hex-texture.png")
   const material = new THREE.MeshStandardMaterial({ map: texture })
   const hexCount = 40000
   const hexRow = 200 //Math.sqrt(hexCount)
-  // let offset = 0.5
-  // let offsetW = 12
-  // let offsetH = 12
-
-  // let w = 0 - offsetW
-  // let h = 0 - offsetH
   let i = 0
   const radius = 0.5
 
@@ -58,9 +52,9 @@ function init() {
       if (row % 2 == 0) {
         //Adding Column Shift for a grid View
         columnOffset += radius * Math.sin(Math.PI / 3)
-        matrix.makeTranslation(columnOffset, 0, rowOffset)
+        matrix.makeTranslation(columnOffset, rowOffset, 0)
       } else {
-        matrix.makeTranslation(columnOffset, 0, rowOffset)
+        matrix.makeTranslation(columnOffset, rowOffset, 0)
       }
       mesh.setMatrixAt(i, matrix)
       mesh.setColorAt(i, color)
