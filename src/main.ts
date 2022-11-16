@@ -19,9 +19,9 @@ function init() {
     60,
     window.innerWidth / window.innerHeight,
     0.1,
-    1000
+    10000000
   )
-  camera.position.set(0, -30, 20)
+  camera.position.set(0, -1000, 2000) // y = -1000 for angle view, 2000 for zoom out
   camera.lookAt(0, 0, 0)
 
   scene = new THREE.Scene()
@@ -30,14 +30,20 @@ function init() {
   light.position.set(0, 10, 10)
   scene.add(light)
 
-  const geometry = new THREE.CircleGeometry(0.5, 6, Math.PI / 2, Math.PI * 2)
-  const texture = new THREE.TextureLoader().load("assets/hex-texture-png.png")
-  const material = new THREE.MeshStandardMaterial({ map: texture })
-  // const material = new THREE.MeshStandardMaterial({ color: 0xffffff })
+  //HEX GRID
   const hexCount = 40000
   const hexRow = 200 //Math.sqrt(hexCount)
   let i = 0
-  const radius = 0.5
+  const radius = 20
+
+  const geometry = new THREE.CircleGeometry(radius, 6, Math.PI / 2, Math.PI * 2)
+  // const texture = new THREE.TextureLoader().load("assets/hex-texture-png.png")
+  // const material = new THREE.MeshStandardMaterial({ map: texture })
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.2,
+  })
 
   mesh = new THREE.InstancedMesh(geometry, material, hexCount)
 
@@ -45,11 +51,9 @@ function init() {
 
   for (let row = 0; row < hexRow; row++) {
     for (let column = 0; column < hexRow; column++) {
-      // based on hex distance of radius 1
       let columnOffset = 2 * column * radius * Math.sin(Math.PI / 3)
       let rowOffset = 3 * row * radius * Math.cos(Math.PI / 3)
-      //Adding Row Shift for a grid View
-      // rowOffset = rowOffset - 1 - Math.cos(Math.PI / 3)
+
       if (row % 2 == 0) {
         //Adding Column Shift for a grid View
         columnOffset += radius * Math.sin(Math.PI / 3)
@@ -57,13 +61,43 @@ function init() {
       } else {
         matrix.makeTranslation(columnOffset, rowOffset, 0)
       }
+
       mesh.setMatrixAt(i, matrix)
       mesh.setColorAt(i, color)
       i++
     }
   }
-
+  mesh.translateX(-hexRow * radius * Math.sin(Math.PI / 3))
+  mesh.translateY(-hexRow * radius + 1000) // DON'T Know why offset of 1000 is needed but it fits the land part of the map
+  mesh.translateZ(10)
   scene.add(mesh)
+
+  // Planer geometry
+  /* Since the hex grid doesnot yiels square size because in this grid the :
+    veticle height = cellHeight * hexRow = 2 * radius * hexRow
+    horizontal width = cellWidth * hexRow = 2 * radius * Math.sin(Math.PI / 3) * hexRow
+
+    So we need to create a planer geometry to fill the gap with size of the hex grid, for radius = 2
+    height = 2 * 2 * 200 = 800
+    width = 2 * 2 * Math.sin(Math.PI / 3) * 200 = 692.82
+
+    map-resized = 8000 * 6928
+
+    */
+
+  const planeGeometry = new THREE.PlaneGeometry(
+    2 * radius * hexRow,
+    2 * radius * Math.sin(Math.PI / 3) * hexRow
+  )
+  const mapTexture = new THREE.TextureLoader().load("assets/map.png") // map-resized = 8000 * 6928
+  const planeMaterial = new THREE.MeshBasicMaterial({
+    map: mapTexture,
+    side: THREE.DoubleSide,
+  })
+  const plane = new THREE.Mesh(planeGeometry, planeMaterial)
+  // plane.translateX((2 * radius * hexRow) / 2 - radius)
+  // plane.translateY((2 * radius * Math.sin(Math.PI / 3) * hexRow) / 2 - radius)
+  scene.add(plane)
 
   renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(window.devicePixelRatio)
@@ -110,7 +144,6 @@ function animate() {
     console.log({ instanceId })
 
     mesh.getColorAt(instanceId, color)
-
     if (color.equals(white)) {
       mesh.setColorAt(instanceId, color.setHex(Math.random() * 0xffffff))
 
