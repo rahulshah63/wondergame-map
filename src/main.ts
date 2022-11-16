@@ -31,74 +31,40 @@ function init() {
   scene.add(light)
 
   const geometry = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 6, 1, false)
-  const material = new THREE.MeshPhongMaterial({ color: 0xffffff })
+  const texture = new THREE.TextureLoader().load("assets/hex-texture.png")
+  const material = new THREE.MeshStandardMaterial({ map: texture })
   const hexCount = 40000
   const hexRow = 200 //Math.sqrt(hexCount)
-  let offset = 0
-  let offsetW = 12
-  let offsetH = 12
+  // let offset = 0.5
+  // let offsetW = 12
+  // let offsetH = 12
 
-  let w = 0 - offsetW
-  let h = 0 - offsetH
+  // let w = 0 - offsetW
+  // let h = 0 - offsetH
   let i = 0
+  const radius = 0.5
 
   mesh = new THREE.InstancedMesh(geometry, material, hexCount)
 
   const matrix = new THREE.Matrix4()
-  // for (let i = 0; i < hexCount; i++) {
-  //   // let randInst = Math.random() + i / 200000
-  //   // let index = Math.floor(Math.random() * 20)
 
-  //   // if (randInst < 0.95) {
-  //   //   let randoColor2 = new THREE.Color("#A9A9A9")
-  //   //   mesh.setColorAt(i, randoColor2)
-  //   // } else {
-  //   //   let randoColor3 = new THREE.Color("#292929")
-  //   //   mesh.setColorAt(i, randoColor3)
-  //   // }
-
-  //   // match event
-  //   // mesh.setColorAt(hexHi, new THREE.Color("#8ed645"))
-  //   // mesh.setColorAt(hexHi + 1, new THREE.Color("#b5de2b"))
-  //   // mesh.setColorAt(hexHi + 2, new THREE.Color("#ece51b"))
-
-  //   // row by col
-  //   if (i % hexRow == 0) {
-  //     if (offset == 0) {
-  //       offset = 1
-  //       h++
-  //       w = 0 - offsetW
-
-  //       randomizeMatrix(matrix, w, h)
-  //       mesh.setMatrixAt(i, matrix)
-  //     } else {
-  //       offset = 0
-  //       h++
-  //       w = 0.5 - offsetW
-
-  //       randomizeMatrix(matrix, w, h)
-  //       mesh.setMatrixAt(i, matrix)
-  //     }
-  //   } else {
-  //     w++
-
-  //     randomizeMatrix(matrix, w, h)
-  //     mesh.setMatrixAt(i, matrix)
-  //   }
-  // }
-  // console.log("Built " + hexCount + " hexagons...")
-  // mesh.matrixAutoUpdate = false
-
-  for (let x = 0; x < hexRow; x++) {
-    for (let y = 0; y < hexRow; y++) {
-      for (let z = 0; z < hexRow; z++) {
-        matrix.makeTranslation(offset - x, offset - y, offset - z)
-
-        mesh.setMatrixAt(i, matrix)
-        mesh.setColorAt(i, color)
-
-        i++
+  for (let row = 0; row < hexRow; row++) {
+    for (let column = 0; column < hexRow; column++) {
+      // based on hex distance of radius 1
+      let columnOffset = 2 * column * radius * Math.sin(Math.PI / 3)
+      let rowOffset = 3 * row * radius * Math.cos(Math.PI / 3)
+      //Adding Row Shift for a grid View
+      // rowOffset = rowOffset - 1 - Math.cos(Math.PI / 3)
+      if (row % 2 == 0) {
+        //Adding Column Shift for a grid View
+        columnOffset += radius * Math.sin(Math.PI / 3)
+        matrix.makeTranslation(columnOffset, 0, rowOffset)
+      } else {
+        matrix.makeTranslation(columnOffset, 0, rowOffset)
       }
+      mesh.setMatrixAt(i, matrix)
+      mesh.setColorAt(i, color)
+      i++
     }
   }
 
@@ -146,6 +112,7 @@ function animate() {
 
   if (intersection.length > 0) {
     const instanceId = intersection[0].instanceId
+    console.log({ instanceId })
 
     mesh.getColorAt(instanceId, color)
 
