@@ -5,11 +5,11 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
 import ExtendedInstancedMesh from "./extendedInstancedMesh"
 
 let mesh: ExtendedInstancedMesh,
-  camera: THREE.PerspectiveCamera | THREE.Camera,
+  camera: THREE.PerspectiveCamera,
   scene: THREE.Scene,
   renderer: THREE.WebGLRenderer,
   controls: OrbitControls,
-  stats: { dom: any; update: () => void }
+  stats: Stats
 
 const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
@@ -121,7 +121,7 @@ function init() {
   controls.enableZoom = true
   controls.enablePan = true
 
-  stats = new Stats()
+  stats = Stats()
   document.body.appendChild(stats.dom)
 
   window.addEventListener("resize", onWindowResize)
@@ -164,7 +164,7 @@ function hoverHex() {
   const intersection = raycaster.intersectObject(mesh)
 
   if (intersection.length > 0) {
-    const instanceId = intersection[0].instanceId
+    const instanceId = intersection[0].instanceId as number
 
     mesh.getColorAt(instanceId, color) //no return anything rather update var
 
@@ -173,7 +173,9 @@ function hoverHex() {
 
     if (color.equals(white)) {
       mesh.setColorAt(instanceId, color.setHex(Math.random() * 0xffffff))
-      mesh.instanceColor.needsUpdate = true
+      if (mesh.instanceColor) {
+        mesh.instanceColor.needsUpdate = true
+      }
     }
   } else {
     // reset color
@@ -181,7 +183,7 @@ function hoverHex() {
       mesh.getColorAt(i, color)
       if (!color.equals(white)) {
         mesh.setColorAt(i, color.setHex(0xffffff))
-        mesh.instanceColor.needsUpdate = true
+        mesh.instanceColor ? (mesh.instanceColor.needsUpdate = true) : null
       }
     }
   }
