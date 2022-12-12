@@ -1,194 +1,285 @@
-import "./styles/main.css"
-import * as THREE from "three"
-import Stats from "three/examples/jsm/libs/stats.module.js"
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
-import ExtendedInstancedMesh from "./extendedInstancedMesh"
+import * as THREE from 'three'
+import { MapControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { HexGrid } from './hexgrid/hexgrid.js'
+import { DebugUtils } from './debug/debug-utils';
+import { Settings } from './settings';
+import { HexgridMaterial } from './hexgrid/hexgrid-material'
+import { ImageLoaderQueue, ImageLoadingMode } from './utils/image-loader-queue';
+import { TextureUtils, WebGLUtils } from './utils/utils';
+import { GPUTextureCopyUtils } from './utils/texture-copy';
+import { Mesh, MeshBasicMaterial } from 'three';
+/**
+ * Global Variables
+ */
+let mouse = new THREE.Vector2(0, 0);
 
-let mesh: ExtendedInstancedMesh,
-  camera: THREE.PerspectiveCamera,
-  scene: THREE.Scene,
-  renderer: THREE.WebGLRenderer,
-  controls: OrbitControls,
-  stats: Stats
+// Check WebGL2 Support
+// Needed for 3D Texture
+if (!WebGLUtils.isWebGL2Available())
+    document.body.appendChild(WebGLUtils.getWebGL2ErrorMessage());
 
-const raycaster = new THREE.Raycaster()
-const mouse = new THREE.Vector2()
+/**
+ * Sizes
+ */
+const sizes = {
+    width: window.innerWidth,
+    height: window.innerHeight
+};
 
-const color = new THREE.Color()
-const matrix = new THREE.Matrix4()
-const white = new THREE.Color().setHex(0xffffff)
+/**
+ * Camera
+ */
+// Base camera
+const camera = new THREE.PerspectiveCamera(Settings.fov, sizes.width / sizes.height, Settings.nearPlane, Settings.farPlane);
+camera.position.x = Settings.cameraPosition.x;
+camera.position.y = Settings.cameraPosition.y;
+camera.position.z = Settings.cameraPosition.z;
 
-init()
-animate()
+window.addEventListener('resize', () => {
+    // Update sizes
+    sizes.width = window.innerWidth;
+    sizes.height = window.innerHeight;
 
-function init() {
-  camera = new THREE.PerspectiveCamera(
-    60,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    10000000
-  )
-  camera.position.set(0, -1000, 2000) // y = -1000 for angle view, 2000 for zoom out
-  camera.lookAt(0, 0, 0)
+    // Update camera
+    camera.aspect = sizes.width / sizes.height;
+    camera.updateProjectionMatrix();
 
-  scene = new THREE.Scene()
+    // Update renderer
+    renderer.setSize(sizes.width, sizes.height);
+    //renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+});
 
-  const light = new THREE.HemisphereLight(0xffffff, 0x000000, 2)
-  light.position.set(0, 10, 10)
-  scene.add(light)
 
-  //HEX GRID
-  const hexCount = 40000
-  const hexRow = 200 //Math.sqrt(hexCount)
-  let i = 0
-  const radius = 20
+/**
+ * Renderer
+ */
+const renderer = new THREE.WebGLRenderer({
+    //canvas: canvas,
+    antialias: true,
+});
 
-  const geometry = new THREE.CircleGeometry(radius, 6, Math.PI / 2, Math.PI * 2)
-  // const texture = new THREE.TextureLoader().load("assets/hex-texture-png.png")
-  // const material = new THREE.MeshStandardMaterial({ map: texture })
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.2,
-  })
+renderer.setSize(sizes.width, sizes.height);
+renderer.setClearColor(new THREE.Color(0.5, 0.7, 1.0));
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+/**
+ * Scene
+ */
+const hexgrid = new HexGrid(Settings.gridOuterRadius, Settings.gridSize);
+const hexMaterial = new HexgridMaterial();
+hexMaterial.setUniform("worldSize", hexgrid.getWorldSize());
+hexgrid.setMaterial(hexMaterial.material);
 
-  mesh = new ExtendedInstancedMesh(geometry, material, hexCount)
+const scene = new THREE.Scene();
+scene.add(hexgrid.mesh);
 
-  // const matrix = new THREE.Matrix4()
+// Overlay hexagon that is rendered on top of active hexagon
+let overlayHex: THREE.Mesh[] = [];
+const hexCount = Settings.showNeighbour ? 7 : 1;
+for (let i = 0; i < hexCount; ++i) {
+    overlayHex.push(new THREE.Mesh(hexgrid.geometry,
+        new THREE.MeshBasicMaterial({
+            color: 0x000,
+            depthTest: false,
+            opacity: Settings.gridOverlayMinOpacity,
+            transparent: true
+        })));
+    overlayHex[i].visible = false;
+}
 
-  for (let row = 0; row < hexRow; row++) {
-    for (let column = 0; column < hexRow; column++) {
-      let columnOffset = 2 * column * radius * Math.sin(Math.PI / 3)
-      let rowOffset = 3 * row * radius * Math.cos(Math.PI / 3)
+scene.add(...overlayHex);
+scene.add(camera);
 
-      if (row % 2 == 0) {
-        //Adding Column Shift for a grid View
-        columnOffset += radius * Math.sin(Math.PI / 3)
-        matrix.makeTranslation(columnOffset, rowOffset, 0)
-      } else {
-        matrix.makeTranslation(columnOffset, rowOffset, 0)
-      }
+// Controls
+const controls = new MapControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enableRotate = false;
+controls.zoomSpeed = Settings.zoomSpeed;
+controls.dampingFactor = Settings.dampingFactor;
+controls.minDistance = Settings.minZoom;
+controls.maxDistance = Settings.maxZoom;
 
-      // adding q,r,s to each hex mesh
-      mesh.setQRS(i, { q: column, r: row, s: -column - row })
+/*
+ * Load Image around the camera
+ */
+let textureGrids: any = [];
+// Total no of image grid in each direction
+const worldSize = hexgrid.getWorldSize();
+const xPos = camera.position.x + worldSize.x * 0.5;
+const zPos = camera.position.z + worldSize.z * 0.5;
+const tgridSpan = 5;
 
-      mesh.setMatrixAt(i, matrix)
-      mesh.setColorAt(i, color)
-      i++
+// @TODO check if cameraPosition is outside the world
+let ix = Math.floor((tgridSpan * xPos) / worldSize.x);
+let iz = Math.floor((tgridSpan * zPos) / worldSize.z);
+let stack: THREE.Vector3[] = [new THREE.Vector3(ix, 0, iz)];
+
+// Add the grid around the player in loading list
+// remove the grid from front and find it's neighbour
+while (stack.length > 0) {
+
+    let grid = stack.shift()!;
+    
+    // Don't process the grid that is outside the range
+    if (grid.x >= tgridSpan || grid.x < 0 || grid.z >= tgridSpan || grid.z < 0)
+        continue;
+
+    textureGrids.push(grid);
+
+    let neighbours : THREE.Vector3[] = [];
+    // generate 8 neighbour
+    // top row
+    neighbours.push(new THREE.Vector3(grid.x - 1, 0.0, grid.z - 1));
+    neighbours.push(new THREE.Vector3(grid.x, 0.0, grid.z - 1));
+    neighbours.push(new THREE.Vector3(grid.x + 1, 0.0, grid.z - 1));
+
+    // middle row
+    neighbours.push(new THREE.Vector3(grid.x - 1, 0.0, grid.z));
+    neighbours.push(new THREE.Vector3(grid.x + 1, 0.0, grid.z));
+
+    // bottom row
+    neighbours.push(new THREE.Vector3(grid.x - 1, 0.0, grid.z + 1));
+    neighbours.push(new THREE.Vector3(grid.x, 0.0, grid.z + 1));
+    neighbours.push(new THREE.Vector3(grid.x + 1, 0.0, grid.z + 1));
+
+    // check if the grid is already in stack
+    // or in loading list
+    neighbours.forEach((neighbour) => {
+        if (stack.find((grid) => (grid.x == neighbour.x && grid.z == neighbour.z)))
+            return;
+        if (textureGrids.find((grid : THREE.Vector3) => (grid.x == neighbour.x && grid.z == neighbour.z)))
+            return;
+
+        stack.push(neighbour);
+    });
+}
+
+// Convert grid id to the texture id
+textureGrids = textureGrids.map((grid : THREE.Vector3) => grid.x + '-' + grid.z);
+
+// Load low res 2048 map and display it until all other textures
+// are loaded
+const imageLoader = new ImageLoaderQueue(['2048'], ImageLoadingMode.Image);
+let maps : THREE.Texture | null = null;
+imageLoader.addEventListener('loaded', (evt) => {
+    const file = evt.file;
+    const image = evt.image;
+    const texture = new THREE.Texture();
+    texture.image = image;
+    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.needsUpdate = true;
+    //const data = evt.data;
+    //new THREE.DataTexture(data, 512, 512, THREE.RGBAFormat);
+    hexMaterial.setUniform('texture0', texture);
+});
+
+imageLoader.addEventListener('done', () => {
+    // Start loading individual texture when the whole 2048 map is loaded
+    const mapLoader = new ImageLoaderQueue(textureGrids);
+    //@TODO width, height, depth is currently hard coded
+    // Start loading grid texture and copy it to texture array
+    const gpuTextureCopyUtils = new GPUTextureCopyUtils(2048, 2048, 25);
+    let mapLoadFlag = 0;
+
+    hexMaterial.setUniform('texture1', gpuTextureCopyUtils.getAttachment());
+    mapLoader.addEventListener('loaded', (evt) => {
+        const file = evt.file;
+        const image = evt.image;
+
+        const width = 1600;
+        const height = 1600;
+
+        if (!maps) {
+            const data = new Uint8Array(width * height * tgridSpan * tgridSpan * 4).fill(128);
+            maps = TextureUtils.create3DTexture(data, {
+                width,
+                height,
+                depth: tgridSpan * tgridSpan,
+                channel: 4
+            });
+        }
+        const [x, z] = file.split('-');
+        const layer = parseInt(z) * tgridSpan + parseInt(x);
+        const texture = new THREE.Texture();
+        texture.image = image;
+        texture.needsUpdate = true;
+        gpuTextureCopyUtils.copyTexture(renderer, texture, layer);
+
+        // Load flag indicates which region of map is loaded in hi-resolution
+        mapLoadFlag = mapLoadFlag | (1 << layer);
+        //hexMaterial.setUniform('mapLoadFlag', mapLoadFlag);
+    });
+
+    mapLoader.addEventListener('done', (evt) => {
+        hexMaterial.setUniform('mapLoadFlag', 1.0);
+    })
+});
+// Debug
+const debugUtils = new DebugUtils(scene, { stats: Settings.showStats, axesHelper: Settings.showAxesHelper });
+
+/**
+ * Animate
+ */
+const clock = new THREE.Clock();
+let lastElapsedTime = 0;
+const raycaster = new THREE.Raycaster();
+let normalizedMouseCoord = new THREE.Vector2(-100, -100);
+
+const tick = () => {
+    const elapsedTime = clock.getElapsedTime();
+    const deltaTime = elapsedTime - lastElapsedTime;
+    lastElapsedTime = elapsedTime;
+
+    debugUtils.begin();
+
+    // Update controls
+    controls.update();
+
+    // Find intersection with the plane and convert it to hex-coordinate
+    // Currently overlay grid is shown at that grid
+    raycaster.setFromCamera(normalizedMouseCoord, camera);
+    let intersection = hexgrid.getIntersection(raycaster.ray);
+    if (intersection) {
+        let translation = hexgrid.convertCubeToWorldCoordinate(intersection);
+        overlayHex[0].position.set(translation.x, translation.y, translation.z);
+
+        let minOpacity = Settings.gridOverlayMinOpacity;
+        let maxOpacity = Settings.gridOverlayMaxOpacity;
+        let t = Math.sin(elapsedTime * 5.) * 0.8 + 0.2;
+        (overlayHex[0].material as MeshBasicMaterial).opacity = minOpacity + t * (maxOpacity - minOpacity);
+        overlayHex[0].visible = true;
+
+        if (Settings.showNeighbour) {
+            let neighbours = hexgrid.findNeighbour(intersection);
+            for (let i = 0; i < 6; ++i) {
+                if (hexgrid.isInRange(neighbours[i])) {
+                    let p = hexgrid.convertCubeToWorldCoordinate(neighbours[i]);
+                    overlayHex[i + 1].position.set(p.x, p.y, p.z);
+                    overlayHex[i + 1].visible = true;
+                    (<MeshBasicMaterial><unknown>overlayHex[i + 1]).opacity = (<MeshBasicMaterial>overlayHex[0].material).opacity;
+                    (<MeshBasicMaterial><unknown>overlayHex[i + 1].material).color = new THREE.Color(0.5, 0.2, 0.1);
+                }
+                else
+                    overlayHex[i + 1].visible = false;
+            }
+        }
     }
-  }
-  mesh.translateX(-hexRow * radius * Math.sin(Math.PI / 3))
-  mesh.translateY(-hexRow * radius + 1000) // DON'T Know why offset of 1000 is needed but it fits the land part of the map
-  mesh.translateZ(10)
+    // Render
+    renderer.render(scene, camera);
 
-  console.log(mesh)
-  scene.add(mesh)
-
-  // Planer geometry
-  /* Since the hex grid doesnot yiels square size because in this grid the :
-    veticle height = cellHeight * hexRow = 2 * radius * hexRow
-    horizontal width = cellWidth * hexRow = 2 * radius * Math.sin(Math.PI / 3) * hexRow
-
-    So we need to create a planer geometry to fill the gap with size of the hex grid, for radius = 2
-    height = 2 * 2 * 200 = 800
-    width = 2 * 2 * Math.sin(Math.PI / 3) * 200 = 692.82
-
-    map-resized = 8000 * 6928
-
-    */
-
-  const planeGeometry = new THREE.PlaneGeometry(
-    2 * radius * hexRow,
-    2 * radius * Math.sin(Math.PI / 3) * hexRow
-  )
-  const mapTexture = new THREE.TextureLoader().load("assets/map.png") // map-resized = 8000 * 6928
-  const planeMaterial = new THREE.MeshBasicMaterial({
-    map: mapTexture,
-    side: THREE.DoubleSide,
-  })
-  const plane = new THREE.Mesh(planeGeometry, planeMaterial)
-  // plane.translateX((2 * radius * hexRow) / 2 - radius)
-  // plane.translateY((2 * radius * Math.sin(Math.PI / 3) * hexRow) / 2 - radius)
-  scene.add(plane)
-
-  renderer = new THREE.WebGLRenderer({ antialias: true })
-  renderer.setPixelRatio(window.devicePixelRatio)
-  renderer.setSize(window.innerWidth, window.innerHeight)
-  document.body.appendChild(renderer.domElement)
-
-  controls = new OrbitControls(camera, renderer.domElement)
-  controls.enableDamping = true
-  controls.enableZoom = true
-  controls.enablePan = true
-
-  stats = Stats()
-  document.body.appendChild(stats.dom)
-
-  window.addEventListener("resize", onWindowResize)
-  document.addEventListener("mousemove", onMouseMove)
+    debugUtils.end();
+    // Call tick again on the next frame
+    window.requestAnimationFrame(tick);
 }
 
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight
-  camera.updateProjectionMatrix()
+if (WebGLUtils.isWebGL2Available())
+    tick();
 
-  renderer.setSize(window.innerWidth, window.innerHeight)
-}
-
-function onMouseMove(event: {
-  preventDefault: () => void
-  clientX: number
-  clientY: number
-}) {
-  event.preventDefault()
-
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
-}
-
-function animate() {
-  requestAnimationFrame(animate)
-
-  controls.update()
-
-  hoverHex()
-
-  render()
-
-  stats.update()
-}
-
-function hoverHex() {
-  raycaster.setFromCamera(mouse, camera)
-
-  const intersection = raycaster.intersectObject(mesh)
-
-  if (intersection.length > 0) {
-    const instanceId = intersection[0].instanceId as number
-
-    mesh.getColorAt(instanceId, color) //no return anything rather update var
-
-    const { q, r, s } = mesh.getQRS(instanceId)
-    console.log({ instanceId, q, r, s })
-
-    if (color.equals(white)) {
-      mesh.setColorAt(instanceId, color.setHex(Math.random() * 0xffffff))
-      if (mesh.instanceColor) {
-        mesh.instanceColor.needsUpdate = true
-      }
-    }
-  } else {
-    // reset color
-    for (let i = 0; i < mesh.count; i++) {
-      mesh.getColorAt(i, color)
-      if (!color.equals(white)) {
-        mesh.setColorAt(i, color.setHex(0xffffff))
-        mesh.instanceColor ? (mesh.instanceColor.needsUpdate = true) : null
-      }
-    }
-  }
-}
-
-function render() {
-  renderer.render(scene, camera)
-}
+document.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    normalizedMouseCoord.x = (e.clientX / sizes.width) * 2 - 1;
+    normalizedMouseCoord.y = - (e.clientY / sizes.height) * 2 + 1;
+});
