@@ -238,7 +238,7 @@ const debugUtils = new DebugUtils(scene, {
  * Animate
  */
 const clock = new THREE.Clock()
-let lastElapsedTime = 0
+var lastElapsedTime = 0
 const raycaster = new THREE.Raycaster()
 let normalizedMouseCoord = new THREE.Vector2(-100, -100)
 

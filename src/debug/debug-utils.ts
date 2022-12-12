@@ -4,7 +4,7 @@ import { AxesHelper } from "three"
 
 export class DebugUtils {
   private showStats: Boolean = false
-  private showAxesHelper: Boolean = false
+  // private showAxesHelper: Boolean = false
   private axesHelper: AxesHelper | null = null
   private stats: Stats | null = null
 
@@ -13,7 +13,7 @@ export class DebugUtils {
     settings = { axesHelper: true, stats: true }
   ) {
     this.showStats = settings.stats
-    this.showAxesHelper = settings.axesHelper
+    // this.showAxesHelper = settings.axesHelper
 
     // Debug
     if (settings.axesHelper) {
