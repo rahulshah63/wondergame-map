@@ -159,19 +159,14 @@ textureGrids = textureGrids.map((grid : THREE.Vector3) => grid.x + '-' + grid.z)
 
 // Load low res 2048 map and display it until all other textures
 // are loaded
-const imageLoader = new ImageLoaderQueue(['2048'], ImageLoadingMode.Image);
+const imageLoader = new ImageLoaderQueue(['2048']);
 let maps : THREE.Texture | null = null;
 imageLoader.addEventListener('loaded', (evt) => {
-    const file = evt.file;
-    const image = evt.image;
-    const texture = new THREE.Texture();
-    texture.image = image;
+    const texture = evt.texture;
     texture.minFilter = THREE.LinearMipMapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.needsUpdate = true;
-    //const data = evt.data;
-    //new THREE.DataTexture(data, 512, 512, THREE.RGBAFormat);
     hexMaterial.setUniform('texture0', texture);
 });
 
@@ -186,11 +181,9 @@ imageLoader.addEventListener('done', () => {
     hexMaterial.setUniform('texture1', gpuTextureCopyUtils.getAttachment());
     mapLoader.addEventListener('loaded', (evt) => {
         const file = evt.file;
-        const image = evt.image;
-
-        const width = 1600;
-        const height = 1600;
-
+        const texture = evt.texture;
+        const width = texture.image.width;
+        const height = texture.image.height;
         if (!maps) {
             const data = new Uint8Array(width * height * tgridSpan * tgridSpan * 4).fill(128);
             maps = TextureUtils.create3DTexture(data, {
@@ -202,11 +195,8 @@ imageLoader.addEventListener('done', () => {
         }
         const [x, z] = file.split('-');
         const layer = parseInt(z) * tgridSpan + parseInt(x);
-        const texture = new THREE.Texture();
-        texture.image = image;
-        texture.needsUpdate = true;
         gpuTextureCopyUtils.copyTexture(renderer, texture, layer);
-
+        
         // Load flag indicates which region of map is loaded in hi-resolution
         mapLoadFlag = mapLoadFlag | (1 << layer);
         //hexMaterial.setUniform('mapLoadFlag', mapLoadFlag);
