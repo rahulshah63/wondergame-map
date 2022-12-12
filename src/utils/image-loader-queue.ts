@@ -1,12 +1,11 @@
-import { EventDispatcher } from "three";
-import * as THREE from 'three'
+import * as THREE from "three"
 
 export const ImageLoadingMode = {
     Image,
     Array
 };
 
-export class ImageLoaderQueue extends EventDispatcher {
+export class ImageLoaderQueue extends THREE.EventDispatcher {
     private loader: THREE.TextureLoader | null = null;
 
     constructor(private images: string[], private basePath: string = "assets/map/") {

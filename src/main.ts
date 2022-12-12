@@ -1,13 +1,14 @@
+import "./styles/main.css"
 import * as THREE from 'three'
 import { MapControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { HexGrid } from './hexgrid/hexgrid.js'
 import { DebugUtils } from './debug/debug-utils';
 import { Settings } from './settings';
 import { HexgridMaterial } from './hexgrid/hexgrid-material'
-import { ImageLoaderQueue, ImageLoadingMode } from './utils/image-loader-queue';
+import { ImageLoaderQueue } from './utils/image-loader-queue';
 import { TextureUtils, WebGLUtils } from './utils/utils';
 import { GPUTextureCopyUtils } from './utils/texture-copy';
-import { Mesh, MeshBasicMaterial } from 'three';
+import { MeshBasicMaterial } from 'three';
 /**
  * Global Variables
  */
@@ -182,8 +183,10 @@ imageLoader.addEventListener('done', () => {
     mapLoader.addEventListener('loaded', (evt) => {
         const file = evt.file;
         const texture = evt.texture;
+
         const width = texture.image.width;
         const height = texture.image.height;
+
         if (!maps) {
             const data = new Uint8Array(width * height * tgridSpan * tgridSpan * 4).fill(128);
             maps = TextureUtils.create3DTexture(data, {
@@ -196,7 +199,7 @@ imageLoader.addEventListener('done', () => {
         const [x, z] = file.split('-');
         const layer = parseInt(z) * tgridSpan + parseInt(x);
         gpuTextureCopyUtils.copyTexture(renderer, texture, layer);
-        
+
         // Load flag indicates which region of map is loaded in hi-resolution
         mapLoadFlag = mapLoadFlag | (1 << layer);
         //hexMaterial.setUniform('mapLoadFlag', mapLoadFlag);
