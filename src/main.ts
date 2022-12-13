@@ -175,10 +175,10 @@ const imageLoader = new ImageLoaderQueue(["2048"])
 let maps: THREE.Texture | null = null
 imageLoader.addEventListener("loaded", (evt) => {
   const texture = evt.texture
-  texture.minFilter = THREE.LinearMipMapLinearFilter
-  texture.magFilter = THREE.LinearFilter
-  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
-  texture.needsUpdate = true
+  //texture.minFilter = THREE.LinearMipMapLinearFilter
+  //texture.magFilter = THREE.LinearFilter
+  //texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
+  //texture.needsUpdate = true
   hexMaterial.setUniform("texture0", texture)
 })
 

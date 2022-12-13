@@ -50,7 +50,6 @@ const fragmentShader : string = `
             float tgridSpan = 5.0f;
             vec2 textureGridSize = worldSize.xz / vec2(tgridSpan);
             worldPos.xz += worldSize.xz * 0.5;
-            
             vec2 ip = floor(worldPos.xz / textureGridSize);
             float layer = ip.y * tgridSpan + ip.x;
             vec2 uv = (worldPos.xz / textureGridSize) - ip;
@@ -73,6 +72,7 @@ const fragmentShader : string = `
                 vec3 uv1 = getUV(vUV);
                 uv1.y = 1.0 - uv1.y;
                 textureColor = texture(texture1, uv1).rgb;
+                //textureColor = vec3(uv1.x, uv1.y, uv1.z / 25.0);
             }
 
             vec3 color = mix(outlineColor, textureColor, f);

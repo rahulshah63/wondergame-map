@@ -67,13 +67,11 @@ export class GPUTextureCopyUtils {
     this.scene.add(this.quad)
 
     this.renderTarget = new THREE.WebGLArrayRenderTarget(width, height, depth)
-    this.renderTarget.texture.format = THREE.RGBFormat
+    this.renderTarget.texture.format = THREE.RGBAFormat
     this.renderTarget.texture.minFilter = THREE.LinearFilter
     this.renderTarget.texture.magFilter = THREE.LinearFilter
     this.renderTarget.texture.wrapS = THREE.ClampToEdgeWrapping
     this.renderTarget.texture.wrapT = THREE.ClampToEdgeWrapping
-    // this.renderTarget.texture.wrapR = THREE.ClampToEdgeWrapping
-    this.renderTarget.texture.wrapR = true
   }
 
   // Specify the array layer to which the src image is to be copied

@@ -78,7 +78,8 @@ class HexGrid {
       this.material,
       this.gridSize * this.gridSize
     )
-    this.topLeft = this.getWorldSize().multiplyScalar(-0.5)
+    this.topLeft = this.getWorldSize().multiplyScalar(-0.5);
+    this.topLeft = this.topLeft.add(new THREE.Vector3(this.innerRadius, 0.0, this.innerRadius));
     this.generateMeshGrid()
   }
 
@@ -88,9 +89,9 @@ class HexGrid {
 
   getWorldSize(): THREE.Vector3 {
     return new THREE.Vector3(
-      this.gridSize * this.innerRadius * 2.0,
+      this.gridSize * this.innerRadius * 2.0 + this.innerRadius,
       0.0,
-      this.gridSize * this.outerRadius * 1.5
+      this.gridSize * this.outerRadius * 1.5 + this.innerRadius
     )
   }
 
