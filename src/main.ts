@@ -15,7 +15,7 @@ import { MeshBasicMaterial } from "three"
 let mouse = new THREE.Vector2(0, 0)
 
 // Check WebGL2 Support
-// Needed for 3D Texture
+// Needed for 2D Texture Array
 if (!WebGLUtils.isWebGL2Available())
   document.body.appendChild(WebGLUtils.getWebGL2ErrorMessage())
 

@@ -19,30 +19,27 @@ export class ImageLoaderQueue extends THREE.EventDispatcher {
   }
 
   async #startLoading() {
-    let promises: Promise<any>[] = this.images.map((image) => {
+
+    for (let image of this.images) {
       const file = this.basePath + "map top down-" + image + ".png"
-      return new Promise((resolve, _reject) => {
+
+      // Wait for promise to resolve before making another request for image
+      // Sequential loading of image rather than parallel
+      await new Promise((resolve, _reject) => {
         this.loader?.load(file, (texture) => {
           resolve({ file: image, texture })
         })
-      })
-    })
-
-    Promise.all(promises)
-      .then((results) => {
-        results.forEach((result) => {
-          this.dispatchEvent({
-            type: "loaded",
-            file: result.file,
-            texture: result.texture,
-          })
-        })
-      })
-      .catch((err) => console.error(err))
-      .finally(() => {
+      }).then((result: any) => {
         this.dispatchEvent({
-          type: "done",
-        })
-      })
+          type: "loaded",
+          file: result.file,
+          texture: result.texture,
+        });
+      });
+    }
+
+    this.dispatchEvent({
+      type: "done",
+    });
   }
 }
