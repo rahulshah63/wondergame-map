@@ -14,8 +14,8 @@ export const Settings = {
     //outlineColor: { r: 0.3, g: 0.5, b: 0.7 },
     // Camera
     cameraPosition: { x: 0, y: 8, z: 3 },
-    minZoom: 2,
-    maxZoom: 200,
+    minZoom: 8,
+    maxZoom: 80,
     dampingFactor: 0.03,
     zoomSpeed: 2,
 

@@ -9,6 +9,7 @@ import { ImageLoaderQueue } from "./utils/image-loader-queue"
 import { TextureUtils, WebGLUtils } from "./utils/utils"
 import { GPUTextureCopyUtils } from "./utils/texture-copy"
 import { MeshBasicMaterial } from "three"
+import { Minimap } from "./world/minimap"
 /**
  * Global Variables
  */
@@ -41,13 +42,21 @@ camera.position.x = Settings.cameraPosition.x
 camera.position.y = Settings.cameraPosition.y
 camera.position.z = Settings.cameraPosition.z
 
+/**
+ * Minimap
+ */
+const miniMap = new  Minimap(0.12);
+miniMap.scaleY(sizes.width / sizes.height);
+
 window.addEventListener("resize", () => {
   // Update sizes
   sizes.width = window.innerWidth
   sizes.height = window.innerHeight
 
   // Update camera
-  camera.aspect = sizes.width / sizes.height
+  const aspect = sizes.width / sizes.height
+  camera.aspect = aspect;
+  miniMap.scaleY(aspect);
   camera.updateProjectionMatrix()
 
   // Update renderer
@@ -64,7 +73,7 @@ const renderer = new THREE.WebGLRenderer({
 })
 
 renderer.setSize(sizes.width, sizes.height)
-renderer.setClearColor(new THREE.Color(0.5, 0.7, 1.0))
+renderer.setClearColor(new THREE.Color().setHex(0x3C5076));
 renderer.setPixelRatio(window.devicePixelRatio)
 document.body.appendChild(renderer.domElement)
 /**
@@ -76,7 +85,9 @@ hexMaterial.setUniform("worldSize", hexgrid.getWorldSize())
 hexgrid.setMaterial(hexMaterial.material)
 
 const scene = new THREE.Scene()
+scene.add(miniMap.mesh);
 scene.add(hexgrid.mesh)
+
 
 // Overlay hexagon that is rendered on top of active hexagon
 let overlayHex: THREE.Mesh[] = []
@@ -108,6 +119,17 @@ controls.dampingFactor = Settings.dampingFactor
 controls.minDistance = Settings.minZoom
 controls.maxDistance = Settings.maxZoom
 
+let minPan = new THREE.Vector3( -80, 0, -80 );
+let maxPan = new THREE.Vector3( 80, 0, 80 );
+let _v = new THREE.Vector3();
+
+controls.addEventListener("change", function() {
+    _v.copy(controls.target);
+    controls.target.clamp(minPan, maxPan);
+    _v.sub(controls.target);
+    camera.position.sub(_v);
+    //console.log(controls);
+});
 /*
  * Load Image around the camera
  */
@@ -175,11 +197,12 @@ const imageLoader = new ImageLoaderQueue(["2048"])
 let maps: THREE.Texture | null = null
 imageLoader.addEventListener("loaded", (evt) => {
   const texture = evt.texture
-  //texture.minFilter = THREE.LinearMipMapLinearFilter
-  //texture.magFilter = THREE.LinearFilter
-  //texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
-  //texture.needsUpdate = true
+  texture.minFilter = THREE.LinearMipMapLinearFilter
+  texture.magFilter = THREE.LinearFilter
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
+  texture.needsUpdate = true
   hexMaterial.setUniform("texture0", texture)
+  miniMap.setMapTexture(texture);
 })
 
 imageLoader.addEventListener("done", () => {
@@ -277,6 +300,7 @@ const tick = () => {
       }
     }
   }
+  
   // Render
   renderer.render(scene, camera)
 
